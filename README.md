@@ -1,9 +1,9 @@
 # go-cqrs
 
 [![CI](https://github.com/jassus213/go-cqrs/actions/workflows/ci.yml/badge.svg)](https://github.com/jassus213/go-cqrs/actions/workflows/ci.yml)
-[![Coverage Status](https://coveralls.io/repos/github/jassus213/go-cqrs/badge.svg?branch=main)](https://coveralls.io/github/jassus213/go-cqrs?branch=main)
+[![Coverage Status](https://coveralls.io/repos/github/jassus213/go-cqrs/badge.svg?branch=main&v=2)](https://coveralls.io/github/jassus213/go-cqrs?branch=main)
 [![Go Reference](https://pkg.go.dev/badge/github.com/jassus213/go-cqrs.svg)](https://pkg.go.dev/github.com/jassus213/go-cqrs)
-[![Go Report Card](https://goreportcard.com/badge/github.com/jassus213/go-cqrs)](https://goreportcard.com/report/github.com/jassus213/go-cqrs)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jassus213/go-cqrs?v=2)](https://goreportcard.com/report/github.com/jassus213/go-cqrs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Generic, composable use-case pipelines for Go. Zero dependencies.
