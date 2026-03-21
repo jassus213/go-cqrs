@@ -40,7 +40,7 @@ func getUser(_ context.Context, req GetUserQuery) (User, error) {
 }
 
 func main() {
-    uc := cqrs.NewDefaultBuilder(logger, cqrs.UseCase[GetUserQuery, User](getUser)).Build()
+    uc := cqrs.NewDefaultBuilder(logger, getUser).Build()
 
     user, err := uc(context.Background(), GetUserQuery{ID: 1})
     // ...

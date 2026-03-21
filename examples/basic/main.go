@@ -69,7 +69,7 @@ func main() {
 	logger := SlogAdapter{L: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))}
 
 	// Query: uses the default pipeline (Recovery → Logging → Validation).
-	getUserUC := cqrs.NewDefaultBuilder(logger, cqrs.UseCase[GetUserQuery, User](getUser)).Build()
+	getUserUC := cqrs.NewDefaultBuilder(logger, getUser).Build()
 
 	user, err := getUserUC(context.Background(), GetUserQuery{ID: 1})
 	if err != nil {
@@ -94,7 +94,7 @@ func main() {
 	fmt.Println("validation skipped (no Validation decorator):", err)
 
 	// With validation.
-	createUserValidated := cqrs.NewDefaultBuilder(logger, cqrs.UseCase[CreateUserCmd, cqrs.None](createUser)).Build()
+	createUserValidated := cqrs.NewDefaultBuilder(logger, createUser).Build()
 
 	_, err = createUserValidated(context.Background(), CreateUserCmd{Name: ""})
 	fmt.Println("validation caught:", err)
