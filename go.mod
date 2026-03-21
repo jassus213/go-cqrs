@@ -1,3 +1,3 @@
 module github.com/jassus213/go-cqrs
 
-go 1.25.6
+go 1.24
