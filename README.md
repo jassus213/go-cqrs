@@ -124,6 +124,86 @@ var deleteUser cqrs.UseCase[DeleteCmd, cqrs.None] = func(ctx context.Context, re
 }
 ```
 
+## Dependency Injection (uber/fx)
+
+go-cqrs works naturally with DI containers. Here's a production pattern with [uber/fx](https://github.com/uber-go/fx):
+
+### 1. Define your use-case constructor
+
+```go
+package bll
+
+import (
+    "context"
+    "fmt"
+
+    cqrs "github.com/jassus213/go-cqrs"
+    "go.uber.org/fx"
+)
+
+type GetAccountQuery struct {
+    ID int64
+}
+
+// Dependencies are injected by fx via fx.In
+type GetAccountDeps struct {
+    fx.In
+
+    Repository AccountRepository
+    Logger     cqrs.Logger
+}
+
+func NewGetAccountUseCase(deps GetAccountDeps) cqrs.UseCase[GetAccountQuery, Account] {
+    handler := func(ctx context.Context, req GetAccountQuery) (Account, error) {
+        account, err := deps.Repository.FindByID(ctx, req.ID)
+        if err != nil {
+            return Account{}, fmt.Errorf("get account: %w", err)
+        }
+        return account, nil
+    }
+
+    return cqrs.NewDefaultBuilder(deps.Logger, handler).Build()
+}
+```
+
+### 2. Register in an fx module
+
+```go
+package account
+
+var Module = fx.Module("account",
+    fx.Provide(
+        fx.Annotate(
+            postgres.NewAccountRepository,
+            fx.As(new(AccountRepository)),
+        ),
+    ),
+    fx.Provide(bll.NewGetAccountUseCase),
+    fx.Provide(v1.NewAccountHandler),
+)
+```
+
+### 3. Inject the built use-case into your handler
+
+```go
+package v1
+
+type AccountHandler struct {
+    getAccount cqrs.UseCase[bll.GetAccountQuery, domain.Account]
+}
+
+func NewAccountHandler(getAccount cqrs.UseCase[bll.GetAccountQuery, domain.Account]) *AccountHandler {
+    return &AccountHandler{getAccount: getAccount}
+}
+
+func (h *AccountHandler) Get(c *gin.Context) {
+    account, err := h.getAccount(c.Request.Context(), bll.GetAccountQuery{ID: 1})
+    // ...
+}
+```
+
+The key insight: `fx.In` tells fx to resolve each struct field from the container. The constructor receives fully-injected deps, builds the pipeline once at startup, and returns a ready-to-call `UseCase` function. No runtime overhead.
+
 ## Examples
 
 See [`examples/basic/main.go`](examples/basic/main.go) for a runnable demo.
