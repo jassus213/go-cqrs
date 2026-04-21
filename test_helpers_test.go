@@ -23,11 +23,12 @@ func newSpyLogger() *spyLogger { return &spyLogger{} }
 func (s *spyLogger) Info(_ context.Context, msg string, args ...any) {
 	s.record("info", msg, args)
 }
-
+func (s *spyLogger) Warn(_ context.Context, msg string, args ...any) {
+	s.record("warn", msg, args)
+}
 func (s *spyLogger) Debug(_ context.Context, msg string, args ...any) {
 	s.record("debug", msg, args)
 }
-
 func (s *spyLogger) Error(_ context.Context, msg string, args ...any) {
 	s.record("error", msg, args)
 }
@@ -85,17 +86,32 @@ func (c validatedCmd) Validate() error {
 	return nil
 }
 
-// handler that always succeeds.
-func okHandler(_ context.Context, req testQuery) (testResult, error) {
+// query handler that always succeeds.
+func okQueryHandler(_ context.Context, req testQuery) (testResult, error) {
 	return testResult{Name: fmt.Sprintf("user-%d", req.ID)}, nil
 }
 
-// handler that always fails.
-func errHandler(_ context.Context, _ testQuery) (testResult, error) {
+// query handler that always fails.
+func errQueryHandler(_ context.Context, _ testQuery) (testResult, error) {
 	return testResult{}, fmt.Errorf("db connection failed")
 }
 
-// handler that panics.
-func panicHandler(_ context.Context, _ testQuery) (testResult, error) {
+// query handler that panics.
+func panicQueryHandler(_ context.Context, _ testQuery) (testResult, error) {
 	panic("something went terribly wrong")
+}
+
+// command handler that always succeeds.
+func okCommandHandler(_ context.Context, req validatedCmd) (None, error) {
+	return None{}, nil
+}
+
+// command handler that always fails.
+func errCommandHandler(_ context.Context, _ validatedCmd) (None, error) {
+	return None{}, fmt.Errorf("write failed")
+}
+
+// command handler that panics.
+func panicCommandHandler(_ context.Context, _ validatedCmd) (None, error) {
+	panic("command panic")
 }

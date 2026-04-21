@@ -6,14 +6,14 @@ import (
 	"testing"
 )
 
-func TestRecovery_NoPanic(t *testing.T) {
+func TestQueryRecovery_NoPanic(t *testing.T) {
 	logger := newSpyLogger()
 
-	uc := NewBuilder(okHandler).
-		Use(Recovery[testQuery, testResult](logger)).
+	h := NewQueryBuilder(QueryHandler[testQuery, testResult](okQueryHandler)).
+		Use(QueryRecovery[testQuery, testResult](logger)).
 		Build()
 
-	res, err := uc(context.Background(), testQuery{ID: 1})
+	res, err := h(context.Background(), testQuery{ID: 1})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -25,14 +25,14 @@ func TestRecovery_NoPanic(t *testing.T) {
 	}
 }
 
-func TestRecovery_CatchesPanic(t *testing.T) {
+func TestQueryRecovery_CatchesPanic(t *testing.T) {
 	logger := newSpyLogger()
 
-	uc := NewBuilder(panicHandler).
-		Use(Recovery[testQuery, testResult](logger)).
+	h := NewQueryBuilder(QueryHandler[testQuery, testResult](panicQueryHandler)).
+		Use(QueryRecovery[testQuery, testResult](logger)).
 		Build()
 
-	_, err := uc(context.Background(), testQuery{ID: 1})
+	_, err := h(context.Background(), testQuery{ID: 1})
 	if err == nil {
 		t.Fatal("expected error from recovered panic")
 	}
@@ -44,15 +44,34 @@ func TestRecovery_CatchesPanic(t *testing.T) {
 	}
 }
 
-func TestRecovery_ReturnsZeroValue(t *testing.T) {
+func TestQueryRecovery_ReturnsZeroValue(t *testing.T) {
 	logger := newSpyLogger()
 
-	uc := NewBuilder(panicHandler).
-		Use(Recovery[testQuery, testResult](logger)).
+	h := NewQueryBuilder(QueryHandler[testQuery, testResult](panicQueryHandler)).
+		Use(QueryRecovery[testQuery, testResult](logger)).
 		Build()
 
-	res, _ := uc(context.Background(), testQuery{ID: 1})
+	res, _ := h(context.Background(), testQuery{ID: 1})
 	if res != (testResult{}) {
 		t.Fatalf("expected zero value, got %+v", res)
+	}
+}
+
+func TestCommandRecovery_CatchesPanic(t *testing.T) {
+	logger := newSpyLogger()
+
+	h := NewCommandBuilder(CommandHandler[validatedCmd, None](panicCommandHandler)).
+		Use(CommandRecovery[validatedCmd, None](logger)).
+		Build()
+
+	_, err := h(context.Background(), validatedCmd{Name: "Alice"})
+	if err == nil {
+		t.Fatal("expected error from recovered panic")
+	}
+	if !strings.Contains(err.Error(), "panic") {
+		t.Fatalf("error should mention panic, got: %v", err)
+	}
+	if !logger.hasMsg("recovered from panic") {
+		t.Fatal("expected panic to be logged")
 	}
 }

@@ -20,6 +20,9 @@ type SlogAdapter struct{ L *slog.Logger }
 func (a SlogAdapter) Info(ctx context.Context, msg string, args ...any) {
 	a.L.InfoContext(ctx, msg, args...)
 }
+func (a SlogAdapter) Warn(ctx context.Context, msg string, args ...any) {
+	a.L.WarnContext(ctx, msg, args...)
+}
 func (a SlogAdapter) Debug(ctx context.Context, msg string, args ...any) {
 	a.L.DebugContext(ctx, msg, args...)
 }
@@ -54,7 +57,6 @@ func (c CreateUserCmd) Validate() error {
 // --- Handlers ----------------------------------------------------------------
 
 func getUser(_ context.Context, req GetUserQuery) (User, error) {
-	// Simulate a DB lookup.
 	return User{ID: req.ID, Name: "Alice"}, nil
 }
 
@@ -68,10 +70,10 @@ func createUser(_ context.Context, req CreateUserCmd) (cqrs.None, error) {
 func main() {
 	logger := SlogAdapter{L: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))}
 
-	// Query: uses the default pipeline (Recovery → Logging → Validation).
-	getUserUC := cqrs.NewDefaultBuilder(logger, getUser).Build()
+	// Query: uses the default pipeline (QueryRecovery → QueryLogging → QueryValidation).
+	getUserHandler := cqrs.NewDefaultQueryBuilder(logger, cqrs.QueryHandler[GetUserQuery, User](getUser)).Build()
 
-	user, err := getUserUC(context.Background(), GetUserQuery{ID: 1})
+	user, err := getUserHandler(context.Background(), GetUserQuery{ID: 1})
 	if err != nil {
 		fmt.Println("error:", err)
 		return
@@ -79,22 +81,22 @@ func main() {
 	fmt.Printf("got user: %+v\n", user)
 
 	// Command: custom pipeline with only logging.
-	createUserUC := cqrs.NewBuilder(createUser).
-		Use(cqrs.Logging[CreateUserCmd, cqrs.None](logger)).
+	createUserHandler := cqrs.NewCommandBuilder(cqrs.CommandHandler[CreateUserCmd, cqrs.None](createUser)).
+		Use(cqrs.CommandLogging[CreateUserCmd, cqrs.None](logger)).
 		Build()
 
-	_, err = createUserUC(context.Background(), CreateUserCmd{Name: "Bob"})
+	_, err = createUserHandler(context.Background(), CreateUserCmd{Name: "Bob"})
 	if err != nil {
 		fmt.Println("error:", err)
 		return
 	}
 
-	// Validation error example.
-	_, err = createUserUC(context.Background(), CreateUserCmd{Name: ""})
-	fmt.Println("validation skipped (no Validation decorator):", err)
+	// Validation skipped — no CommandValidation decorator in this pipeline.
+	_, err = createUserHandler(context.Background(), CreateUserCmd{Name: ""})
+	fmt.Println("validation skipped (no CommandValidation decorator):", err)
 
-	// With validation.
-	createUserValidated := cqrs.NewDefaultBuilder(logger, createUser).Build()
+	// With full default pipeline — CommandValidation catches the empty name.
+	createUserValidated := cqrs.NewDefaultCommandBuilder(logger, cqrs.CommandHandler[CreateUserCmd, cqrs.None](createUser)).Build()
 
 	_, err = createUserValidated(context.Background(), CreateUserCmd{Name: ""})
 	fmt.Println("validation caught:", err)

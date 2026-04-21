@@ -6,33 +6,33 @@ import (
 	"testing"
 )
 
-func TestValidation_PassesValid(t *testing.T) {
+func TestCommandValidation_PassesValid(t *testing.T) {
 	handler := func(_ context.Context, req validatedCmd) (None, error) {
 		return None{}, nil
 	}
 
-	uc := NewBuilder(handler).
-		Use(Validation[validatedCmd, None]()).
+	h := NewCommandBuilder(CommandHandler[validatedCmd, None](handler)).
+		Use(CommandValidation[validatedCmd, None]()).
 		Build()
 
-	_, err := uc(context.Background(), validatedCmd{Name: "Alice"})
+	_, err := h(context.Background(), validatedCmd{Name: "Alice"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-func TestValidation_RejectsInvalid(t *testing.T) {
+func TestCommandValidation_RejectsInvalid(t *testing.T) {
 	called := false
 	handler := func(_ context.Context, req validatedCmd) (None, error) {
 		called = true
 		return None{}, nil
 	}
 
-	uc := NewBuilder(handler).
-		Use(Validation[validatedCmd, None]()).
+	h := NewCommandBuilder(CommandHandler[validatedCmd, None](handler)).
+		Use(CommandValidation[validatedCmd, None]()).
 		Build()
 
-	_, err := uc(context.Background(), validatedCmd{Name: ""})
+	_, err := h(context.Background(), validatedCmd{Name: ""})
 	if err == nil {
 		t.Fatal("expected validation error")
 	}
@@ -44,13 +44,12 @@ func TestValidation_RejectsInvalid(t *testing.T) {
 	}
 }
 
-func TestValidation_SkipsNonValidator(t *testing.T) {
-	// testQuery does not implement Validator — should pass through.
-	uc := NewBuilder(okHandler).
-		Use(Validation[testQuery, testResult]()).
+func TestQueryValidation_SkipsNonValidator(t *testing.T) {
+	h := NewQueryBuilder(QueryHandler[testQuery, testResult](okQueryHandler)).
+		Use(QueryValidation[testQuery, testResult]()).
 		Build()
 
-	res, err := uc(context.Background(), testQuery{ID: 5})
+	res, err := h(context.Background(), testQuery{ID: 5})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

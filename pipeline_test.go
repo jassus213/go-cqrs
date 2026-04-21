@@ -8,12 +8,12 @@ import (
 
 // Integration tests — full pipeline with multiple decorators.
 
-func TestPipeline_DefaultBuilder_Success(t *testing.T) {
+func TestPipeline_DefaultQueryBuilder_Success(t *testing.T) {
 	logger := newSpyLogger()
 
-	uc := NewDefaultBuilder(logger, okHandler).Build()
+	h := NewDefaultQueryBuilder(logger, QueryHandler[testQuery, testResult](okQueryHandler)).Build()
 
-	res, err := uc(context.Background(), testQuery{ID: 99})
+	res, err := h(context.Background(), testQuery{ID: 99})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -22,12 +22,12 @@ func TestPipeline_DefaultBuilder_Success(t *testing.T) {
 	}
 }
 
-func TestPipeline_DefaultBuilder_HandlerError(t *testing.T) {
+func TestPipeline_DefaultQueryBuilder_HandlerError(t *testing.T) {
 	logger := newSpyLogger()
 
-	uc := NewDefaultBuilder(logger, errHandler).Build()
+	h := NewDefaultQueryBuilder(logger, QueryHandler[testQuery, testResult](errQueryHandler)).Build()
 
-	_, err := uc(context.Background(), testQuery{ID: 1})
+	_, err := h(context.Background(), testQuery{ID: 1})
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -36,12 +36,12 @@ func TestPipeline_DefaultBuilder_HandlerError(t *testing.T) {
 	}
 }
 
-func TestPipeline_DefaultBuilder_Panic(t *testing.T) {
+func TestPipeline_DefaultQueryBuilder_Panic(t *testing.T) {
 	logger := newSpyLogger()
 
-	uc := NewDefaultBuilder(logger, panicHandler).Build()
+	h := NewDefaultQueryBuilder(logger, QueryHandler[testQuery, testResult](panicQueryHandler)).Build()
 
-	_, err := uc(context.Background(), testQuery{ID: 1})
+	_, err := h(context.Background(), testQuery{ID: 1})
 	if err == nil {
 		t.Fatal("expected error from panic")
 	}
@@ -50,7 +50,7 @@ func TestPipeline_DefaultBuilder_Panic(t *testing.T) {
 	}
 }
 
-func TestPipeline_DefaultBuilder_ValidationFails(t *testing.T) {
+func TestPipeline_DefaultCommandBuilder_ValidationFails(t *testing.T) {
 	logger := newSpyLogger()
 
 	called := false
@@ -59,9 +59,9 @@ func TestPipeline_DefaultBuilder_ValidationFails(t *testing.T) {
 		return None{}, nil
 	}
 
-	uc := NewDefaultBuilder(logger, handler).Build()
+	h := NewDefaultCommandBuilder(logger, CommandHandler[validatedCmd, None](handler)).Build()
 
-	_, err := uc(context.Background(), validatedCmd{Name: ""})
+	_, err := h(context.Background(), validatedCmd{Name: ""})
 	if err == nil {
 		t.Fatal("expected validation error")
 	}
@@ -70,49 +70,49 @@ func TestPipeline_DefaultBuilder_ValidationFails(t *testing.T) {
 	}
 }
 
-func TestPipeline_DefaultBuilder_ValidationPasses(t *testing.T) {
+func TestPipeline_DefaultCommandBuilder_ValidationPasses(t *testing.T) {
 	logger := newSpyLogger()
 
 	handler := func(_ context.Context, req validatedCmd) (None, error) {
 		return None{}, nil
 	}
 
-	uc := NewDefaultBuilder(logger, handler).Build()
+	h := NewDefaultCommandBuilder(logger, CommandHandler[validatedCmd, None](handler)).Build()
 
-	_, err := uc(context.Background(), validatedCmd{Name: "Bob"})
+	_, err := h(context.Background(), validatedCmd{Name: "Bob"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-func TestPipeline_CustomDecorator(t *testing.T) {
+func TestPipeline_CustomQueryDecorator(t *testing.T) {
 	var trace []string
 
-	custom := func(next UseCase[testQuery, testResult]) UseCase[testQuery, testResult] {
+	custom := func(next QueryHandler[testQuery, testResult]) QueryHandler[testQuery, testResult] {
 		return func(ctx context.Context, req testQuery) (testResult, error) {
 			trace = append(trace, "custom")
 			return next(ctx, req)
 		}
 	}
 
-	uc := NewBuilder(okHandler).
+	h := NewQueryBuilder(QueryHandler[testQuery, testResult](okQueryHandler)).
 		Use(custom).
 		Build()
 
-	_, _ = uc(context.Background(), testQuery{ID: 1})
+	_, _ = h(context.Background(), testQuery{ID: 1})
 	if len(trace) != 1 || trace[0] != "custom" {
 		t.Fatalf("custom decorator not called, trace: %v", trace)
 	}
 }
 
 func TestPipeline_NoneResponse(t *testing.T) {
-	handler := func(_ context.Context, _ testQuery) (None, error) {
+	handler := func(_ context.Context, _ validatedCmd) (None, error) {
 		return None{}, nil
 	}
 
-	uc := NewBuilder(handler).Build()
+	h := NewCommandBuilder(CommandHandler[validatedCmd, None](handler)).Build()
 
-	res, err := uc(context.Background(), testQuery{ID: 1})
+	res, err := h(context.Background(), validatedCmd{Name: "Alice"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
